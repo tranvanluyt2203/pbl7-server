@@ -2,65 +2,98 @@ from flask import Flask, request, jsonify
 import jwt
 import datetime
 from CrawlData import Crawl_from_API_shopee, Crawl_from_API_tiki, Crawl_from_muarenhat
+from firebase_admin import credentials, auth, firestore, db
+import firebase_admin
+from firebase_admin import firestore
+import hashlib
+
 
 app = Flask(__name__)
 
 SECRET_KEY = "secret"
 
 
-# Thực hiện xác thực người dùng
-def authenticate(username, password):
-    # Đây là nơi bạn thực hiện xác thực người dùng, ví dụ kiểm tra trong cơ sở dữ liệu
-    # Trong ví dụ này, chỉ đơn giản là kiểm tra username và password
-    if username == "admin" and password == "password":
-        return True
-    else:
-        return False
+# Khởi tạo Firebase Admin SDK
+cred = credentials.Certificate("./pbl7-fa653-firebase-adminsdk-2mifc-4880062305.json")
+firebase_admin.initialize_app(
+    cred,
+    {
+        "databaseURL": "https://pbl7-fa653-default-rtdb.asia-southeast1.firebasedatabase.app"
+    },
+)
 
 
-# Tạo token
-def generate_token(username):
-    payload = {
-        "username": username,
-        "exp": datetime.datetime.utcnow()
-        + datetime.timedelta(minutes=30),  # Thời gian hết hạn của token
-    }
-    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-    return token
+def hash_password(password):
+    # Sử dụng thuật toán băm SHA-256 để mã hóa mật khẩu
+    hashed_password = hashlib.sha256(password.encode()).hexdigest()
+    return hashed_password
 
 
-# API endpoint để xác thực và tạo token
+# API endpoint để đăng ký người dùng
+@app.route("/register", methods=["POST"])
+def register():
+    # Nhận thông tin người dùng từ request
+    email = request.json.get("email")
+    password = request.json.get("password")
+    try:
+        # Tạo tài khoản người dùng trong Firebase Authentication
+        user = auth.create_user(email=email, password=password)
+        accessToken = "shop" + user.uid + "2203"
+        # Tạo dữ liệu trong Realtime Database
+        user_data = {
+            "email": email,
+            "password": hash_password(password),
+            "accessToken": accessToken,
+        }
+        db.reference("users").child(user.uid).set(user_data)
+
+        return (
+            jsonify(
+                {
+                    "status": "Success",
+                    "message": "User registered successfully",
+                    "accessToken": accessToken,
+                }
+            ),
+            201,
+        )
+    except firebase_admin.auth.EmailAlreadyExistsError:
+        return jsonify({"error": "Email already exists"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
-    username = data.get("username")
-    password = data.get("password")
-
-    if not username or not password:
-        return jsonify({"error": "Missing username or password"}), 400
-
-    if authenticate(username, password):
-        token = generate_token(username)
-        return jsonify({"token": token.decode("utf-8")})
-    else:
-        return jsonify({"error": "Invalid username or password"}), 401
-
-
-# API endpoint bảo vệ, chỉ được truy cập nếu có token hợp lệ
-@app.route("/protected", methods=["GET"])
-def protected():
-    token = request.headers.get("Authorization")
-
-    if not token:
-        return jsonify({"error": "Missing token"}), 401
+    # Nhận dữ liệu đăng nhập từ yêu cầu
+    email = request.json.get("email")
+    password = request.json.get("password")
+    print(password)
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return jsonify({"message": "Protected endpoint", "user": payload["username"]})
-    except jwt.ExpiredSignatureError:
-        return jsonify({"error": "Token has expired"}), 401
-    except jwt.InvalidTokenError:
-        return jsonify({"error": "Invalid token"}), 401
+        # Xác thực người dùng với Firebase Authentication
+        user = auth.get_user_by_email(email)
+        if user:
+            ref = db.reference(f"/users/{user.uid}")
+            if ref.get()["password"] == hash_password(password):
+                accessToken = ref.get()["accessToken"]
+                return (
+                    jsonify(
+                        {
+                            "status": "Success",
+                            "message": "Login success",
+                            "accessToken": accessToken,
+                        }
+                    ),
+                    200,
+                )
+            else:
+                return jsonify({"Error": "Invalid password"}), 400
+
+        else:
+            return jsonify({"error": "error"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 @app.route("/crawl_data", methods=["GET"])
