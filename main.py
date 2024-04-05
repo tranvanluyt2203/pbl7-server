@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g, redirect, url_for
 import jwt
 import datetime
 from CrawlData import Crawl_from_API_shopee, Crawl_from_API_tiki, Crawl_from_muarenhat
@@ -6,14 +6,14 @@ from firebase_admin import credentials, auth, firestore, db
 import firebase_admin
 from firebase_admin import firestore
 import hashlib
-
+import json
+from tqdm import tqdm
 
 app = Flask(__name__)
 
 SECRET_KEY = "secret"
 
-
-# Khởi tạo Firebase Admin SDK
+# Initialize Firebase Admin SDK
 cred = credentials.Certificate("./pbl7-fa653-firebase-adminsdk-2mifc-4880062305.json")
 firebase_admin.initialize_app(
     cred,
@@ -21,32 +21,28 @@ firebase_admin.initialize_app(
         "databaseURL": "https://pbl7-fa653-default-rtdb.asia-southeast1.firebasedatabase.app"
     },
 )
+db_firestore = firestore.client()
 
 
 def hash_password(password):
-    # Sử dụng thuật toán băm SHA-256 để mã hóa mật khẩu
     hashed_password = hashlib.sha256(password.encode()).hexdigest()
     return hashed_password
 
 
-# API endpoint để đăng ký người dùng
-@app.route("/register", methods=["POST"])
+@app.route("/api/v1/register", methods=["POST"])
 def register():
-    # Nhận thông tin người dùng từ request
     email = request.json.get("email")
     password = request.json.get("password")
     try:
-        # Tạo tài khoản người dùng trong Firebase Authentication
         user = auth.create_user(email=email, password=password)
         accessToken = "shop" + user.uid + "2203"
-        # Tạo dữ liệu trong Realtime Database
         user_data = {
             "email": email,
             "password": hash_password(password),
             "accessToken": accessToken,
         }
         db.reference("users").child(user.uid).set(user_data)
-
+        db_firestore.collection("users").document(user.uid).set(user_data)
         return (
             jsonify(
                 {
@@ -63,15 +59,11 @@ def register():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/login", methods=["POST"])
+@app.route("/api/v1/login", methods=["POST"])
 def login():
-    # Nhận dữ liệu đăng nhập từ yêu cầu
     email = request.json.get("email")
     password = request.json.get("password")
-    print(password)
-
     try:
-        # Xác thực người dùng với Firebase Authentication
         user = auth.get_user_by_email(email)
         if user:
             ref = db.reference(f"/users/{user.uid}")
@@ -88,26 +80,115 @@ def login():
                     200,
                 )
             else:
-                return jsonify({"Error": "Invalid password"}), 400
-
+                return jsonify({"error": "Invalid password"}), 401
         else:
             return jsonify({"error": "error"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
 
-@app.route("/crawl_data", methods=["GET"])
+@app.before_request
+def authenticate_user():
+    id_token = request.headers.get("Authorization")
+    if id_token:
+        try:
+            # Xác thực mã thông báo ID token từ Firebase
+            decoded_token = auth.verify_id_token(id_token)
+            # Lưu trữ thông tin về người dùng trong global variable g
+            g.user = decoded_token
+        except auth.InvalidIdTokenError:
+            g.user = None
+    else:
+        g.user = None
+
+
+@app.route("/api/v1/get_detail_product_by_id/", methods=["GET"])
+def getDetailProductById():
+    productId = request.args.get("productId")
+    if productId:
+        product_ref = db_firestore.collection("products").document(productId)
+        product_data = product_ref.get()
+        if product_data.exists:
+            return (
+                jsonify(
+                    {
+                        "status": "Success",
+                        "result": product_data.to_dict(),
+                    }
+                ),
+                200,
+            )
+        else:
+            return jsonify({"error": "No found product"}), 404
+    else:
+        return jsonify({"error": "The URL is fail"}), 400
+
+
+@app.route("/api/v1/search_product_by_name/", methods=["GET"])
+def searchProductByName():
+    search_query = request.args.get("find")
+    if search_query:
+        results = []
+        products_ref = db_firestore.collection("products")
+
+        query_ref = products_ref.stream()
+        for doc in query_ref:
+            doc_dict = doc.to_dict()
+            if search_query in doc_dict["name"]:
+                results.append(doc_dict)
+
+        if results:
+            return jsonify({"status": "Success", "results": results}), 200
+        else:
+            return jsonify({"error": "No products found with the given name"}), 404
+    else:
+        return jsonify({"error": "Query parameter 'query' is required"}), 400
+
+
+@app.route("/api/v1/crawl_data", methods=["GET"])
 def crawl_data():
     type_economy = int(request.args.get("type"))
-    numPage = int(request.args.get("num_page"))
-    print(type(type_economy))
-    print(numPage)
+    numPage = int(request.args.get("numPage"))
     if type_economy == 3:
-        print("VAO")
-        Crawl_from_muarenhat(numPage, "./Data/TestDataAPI.json")
+        print("Reading Data from Muarenhat")
+        Crawl_from_muarenhat(numPage, "./Data/TestData.json")
         return jsonify({"message": "Data crawled successfully", "result": "success"})
     else:
         return jsonify({"error": "Invalid type"}), 400
+
+
+@app.route("/api/v1/push_local_to_firebase", methods=["POST"])
+def push_local_to_firebase(path_file_data="Data/TestData.json"):
+    data = None
+    with open(path_file_data, "r") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            return jsonify({"error": "No data to push "}), 400
+    try:
+        with tqdm(total=len(data)) as pbar:
+            for index, item in enumerate(data):
+                # db.reference("products").child(f"product{index + 1}").set(item)
+                db_firestore.collection("products").document(f"product{index + 1}").set(
+                    item
+                )
+                pbar.update(1)  # Cập nhật tiến độ
+
+        return jsonify({"status": "Success", "message": "Push data success"}), 200
+    except Exception as e:
+        return jsonify({"Error": str(e)}), 400
+
+
+@app.route("/api/v1/add_to_cart", methods=["POST"])
+def add_to_card():
+    idProduct = request.args.get("idProduct")
+    listIdProduct = db_firestore.collection("cart").document()
+    return
+
+
+@app.route("/api/v1/product_recommender", methods=["GET"])
+def product_recommender():
+    return jsonify({"Error": "no data"}), 400
 
 
 if __name__ == "__main__":
