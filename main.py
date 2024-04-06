@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 app = Flask(__name__)
 
-SECRET_KEY = "secret"
+SECRET_KEY = "Bearer"
 
 # Initialize Firebase Admin SDK
 cred = credentials.Certificate("./pbl7-fa653-firebase-adminsdk-2mifc-4880062305.json")
@@ -23,8 +23,10 @@ firebase_admin.initialize_app(
 )
 db_firestore = firestore.client()
 
+valid_tokens = set()
 
-def hash_password(password):
+
+def hash(password):
     hashed_password = hashlib.sha256(password.encode()).hexdigest()
     return hashed_password
 
@@ -38,7 +40,7 @@ def register():
         accessToken = "shop" + user.uid + "2203"
         user_data = {
             "email": email,
-            "password": hash_password(password),
+            "password": hash(password),
             "accessToken": accessToken,
         }
         db.reference("users").child(user.uid).set(user_data)
@@ -67,8 +69,9 @@ def login():
         user = auth.get_user_by_email(email)
         if user:
             ref = db.reference(f"/users/{user.uid}")
-            if ref.get()["password"] == hash_password(password):
+            if ref.get()["password"] == hash(password):
                 accessToken = ref.get()["accessToken"]
+                valid_tokens.add(SECRET_KEY + accessToken)
                 return (
                     jsonify(
                         {
@@ -85,21 +88,6 @@ def login():
             return jsonify({"error": "error"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-
-
-@app.before_request
-def authenticate_user():
-    id_token = request.headers.get("Authorization")
-    if id_token:
-        try:
-            # Xác thực mã thông báo ID token từ Firebase
-            decoded_token = auth.verify_id_token(id_token)
-            # Lưu trữ thông tin về người dùng trong global variable g
-            g.user = decoded_token
-        except auth.InvalidIdTokenError:
-            g.user = None
-    else:
-        g.user = None
 
 
 @app.route("/api/v1/get_detail_product_by_id/", methods=["GET"])
@@ -181,14 +169,67 @@ def push_local_to_firebase(path_file_data="Data/TestData.json"):
 
 @app.route("/api/v1/add_to_cart", methods=["POST"])
 def add_to_card():
-    idProduct = request.args.get("idProduct")
-    listIdProduct = db_firestore.collection("cart").document()
-    return
+    token = request.headers.get("Authorization")
+    if token:
+        if token in valid_tokens:
+            idProduct = request.args.get("idProduct")
+            idUser = token.split(SECRET_KEY)[1]
+            data = {"idProduct": idProduct}
+            db_firestore.collection("cart").document(idUser).set(data)
+            return jsonify({"status": "Success", "message": "Added to cart"}), 200
+        else:
+            return jsonify({"Error": "Token is not valid"}), 401
+    else:
+        return jsonify({"Error": "No accessToken"}), 401
+
+
+@app.route("/api/v1/get_cart", methods=["GET"])
+def get_cart():
+    token = request.headers.get("Authorization")
+    if token:
+        if token in valid_tokens:
+            idUser = token.split(SECRET_KEY)[1]
+            data = db_firestore.collection("cart").document(idUser).get()
+            if data.exists:
+                listProduct = data.to_dict()
+                return jsonify(
+                    {
+                        "status": "Success",
+                        "message": "Danh sách sản phẩm từ giỏ hàng",
+                        "result": listProduct,
+                    }
+                ),200
+            else:
+                listProduct = []
+                return jsonify(
+                    {
+                        "status": "Success",
+                        "message": "Giỏ hàng trống",
+                        "result": listProduct,
+                    }
+                ),200
+        else:
+            return jsonify({"Error": "Token is not valid"}), 401
+    else:
+        return jsonify({"Error": "No accessToken"}), 401
 
 
 @app.route("/api/v1/product_recommender", methods=["GET"])
 def product_recommender():
     return jsonify({"Error": "no data"}), 400
+
+
+@app.route("/api/v1/logout", methods=["POST"])
+def logout():
+    token = request.headers.get("Authorization")
+    if token:
+        if token in valid_tokens:
+            valid_tokens.remove(token)
+            return jsonify({"status": "Success", "message": "Logout Success"}), 200
+        else:
+            return jsonify({"Error": "Token is not valid"}), 401
+    else:
+        return jsonify({"Error": "No accessToken"}), 401
 
 
 if __name__ == "__main__":

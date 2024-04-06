@@ -1,5 +1,7 @@
 import requests
 
+token = ""
+
 
 def register():
     url = "http://127.0.0.1:5000/api/v1/register"
@@ -7,7 +9,6 @@ def register():
     headers = {"Content-Type": "application/json"}
 
     response = requests.post(url, json=data, headers=headers)
-
     print(response.status_code)
     print(response.json())
 
@@ -16,7 +17,8 @@ def login():
     url = "http://127.0.0.1:5000/api/v1/login"
     data = {"email": "tranvanluyt12b4@gmail.com", "password": "22032002"}
     response = requests.post(url, json=data)
-
+    global token
+    token = response.json().get("accessToken")
     print("Status code:", response.status_code)
     print("Response:", response.json())
 
@@ -51,16 +53,37 @@ def getProductByName():
     response = requests.get(url, params=params)
     print("Status code", response.status_code)
     print("Response:", response.json())
+
+
 def logout():
     url = "http://127.0.0.1:5000/api/v1/logout"
-    response =requests.get(url)
+    global token
+    headers = {"Authorization": f"Bearer{token}"}
+    response = requests.post(url, headers=headers)
     print("Status code", response.status_code)
     print("Response:", response.json())
+
+
 def add_to_cart():
     url = "http://127.0.0.1:5000/api/v1/add_to_cart"
-    response =requests.get(url)
+    global token
+    headers = {"Authorization": f"Bearer{token}"}
+    idProduct = input("Enter IdProduct : ")
+    params = {"idProduct": idProduct}
+    response = requests.post(url, headers=headers, params=params)
     print("Status code", response.status_code)
     print("Response:", response.json())
+
+
+def get_cart():
+    url = "http://127.0.0.1:5000/api/v1/get_cart"
+    global token
+    headers = {"Authorization": f"Bearer{token}"}
+    response = requests.get(url, headers=headers)
+    print("Status code", response.status_code)
+    print("Response:", response.json())
+
+
 def main():
     select = -1
     while select != 0:
@@ -71,7 +94,8 @@ def main():
         print("5. Get Detail Product By Id")
         print("6. Find Product")
         print("7. Add to cart")
-        print("8. Logout")
+        print("8. Get Cart")
+        print("9. Logout")
         print("0. To out")
         print("")
         select = int(input("Type your select : "))
@@ -90,6 +114,8 @@ def main():
         elif select == 7:
             add_to_cart()
         elif select == 8:
+            get_cart()
+        elif select == 9:
             logout()
 
 
