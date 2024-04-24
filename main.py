@@ -26,9 +26,22 @@ db_firestore = firestore.client()
 valid_tokens = set()
 
 
-def hash(password):
-    hashed_password = hashlib.sha256(password.encode()).hexdigest()
-    return hashed_password
+def hash(content):
+    hashed_content = hashlib.sha256(content.encode()).hexdigest()
+    return hashed_content
+
+
+@app.route("/", methods=["GET"])
+def home():
+    return (
+        jsonify(
+            {
+                "status": "Success",
+                "message": "THIS IS HOME API",
+            }
+        ),
+        201,
+    )
 
 
 @app.route("/api/v1/register", methods=["POST"])
@@ -43,22 +56,47 @@ def register():
             "password": hash(password),
             "accessToken": accessToken,
         }
+        profile = {
+            "fullname": "",
+            "email": email,
+            "phone_number": "",
+            "birth_day": "",
+            "avatar": "https://ss-images.saostar.vn/wp700/pc/1613810558698/Facebook-Avatar_3.png",
+        }
         db.reference("users").child(user.uid).set(user_data)
         db_firestore.collection("users").document(user.uid).set(user_data)
+        db_firestore.collection("profiles").document(user.uid).set(profile)
         return (
             jsonify(
                 {
-                    "status": "Success",
-                    "message": "User registered successfully",
-                    "accessToken": accessToken,
+                    "success": True,
+                    "status": 201,
+                    "message": "User register successfully",
+                    "data": {
+                        "accessToken": accessToken,
+                    },
                 }
             ),
             201,
         )
     except firebase_admin.auth.EmailAlreadyExistsError:
-        return jsonify({"error": "Email already exists"}), 400
+        return (
+            jsonify(
+                {
+                    "error": "Email already exists",
+                }
+            ),
+            400,
+        )
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return (
+            jsonify(
+                {
+                    "error": str(e),
+                }
+            ),
+            500,
+        )
 
 
 @app.route("/api/v1/login", methods=["POST"])
@@ -75,19 +113,125 @@ def login():
                 return (
                     jsonify(
                         {
-                            "status": "Success",
+                            "success": True,
+                            "status": 200,
                             "message": "Login success",
-                            "accessToken": accessToken,
+                            "data": {
+                                "accessToken": accessToken,
+                            },
                         }
                     ),
                     200,
                 )
             else:
-                return jsonify({"error": "Invalid password"}), 401
+                return (
+                    jsonify(
+                        {
+                            "error": "Invalid password",
+                        }
+                    ),
+                    401,
+                )
         else:
-            return jsonify({"error": "error"}), 400
+            return (
+                jsonify(
+                    {
+                        "error": "error",
+                    }
+                ),
+                400,
+            )
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return (
+            jsonify(
+                {"error": str(e)},
+            ),
+            400,
+        )
+
+
+@app.route("api/v1/get_profile", methods=["GET"])
+def get_profile():
+    token = request.headers.get("Authorization")
+    if token:
+        if token in valid_tokens:
+            userId = token.split(SECRET_KEY)[1].split("shop")[1].split("2203")[0]
+            profile = (
+                db_firestore.collection("profiles").document(userId).get().to_dict()
+            )
+
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "status": 200,
+                        "message": "Success",
+                        "data": {
+                            "profile": profile,
+                        },
+                    }
+                ),
+                200,
+            )
+        else:
+            return (
+                jsonify(
+                    {
+                        "Error": "Token is not valid",
+                    }
+                ),
+                401,
+            )
+
+    else:
+        return (
+            jsonify(
+                {
+                    "Error": "No accessToken",
+                }
+            ),
+            401,
+        )
+
+
+@app.route("api/v1/update_profile", methods=["POST"])
+def update_profile():
+    token = request.headers.get("Authorization")
+    if token:
+        if token in valid_tokens:
+            userId = token.split(SECRET_KEY)[1].split("shop")[1].split("2203")[0]
+            data = request.json
+            db_firestore.collection("profiles").document(userId).set(data)
+
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "status": 200,
+                        "message": "Update Your Profile Success",
+                    }
+                ),
+                200,
+            )
+        else:
+            return (
+                jsonify(
+                    {
+                        "Error": "Token is not valid",
+                    }
+                ),
+                401,
+            )
+
+    else:
+        return (
+            jsonify(
+                {
+                    "Error": "No accessToken",
+                }
+            ),
+            401,
+        )
 
 
 @app.route("/api/v1/get_detail_product_by_id/", methods=["GET"])
@@ -100,16 +244,33 @@ def getDetailProductById():
             return (
                 jsonify(
                     {
-                        "status": "Success",
-                        "result": product_data.to_dict(),
+                        "success": True,
+                        "status": 200,
+                        "data": {
+                            "detailProduct": product_data.to_dict(),
+                        },
                     }
                 ),
                 200,
             )
         else:
-            return jsonify({"error": "No found product"}), 404
+            return (
+                jsonify(
+                    {
+                        "error": "No found product",
+                    }
+                ),
+                404,
+            )
     else:
-        return jsonify({"error": "The URL is fail"}), 400
+        return (
+            jsonify(
+                {
+                    "error": "The URL is fail",
+                }
+            ),
+            400,
+        )
 
 
 @app.route("/api/v1/search_product_by_name/", methods=["GET"])
@@ -126,11 +287,90 @@ def searchProductByName():
                 results.append(doc_dict)
 
         if results:
-            return jsonify({"status": "Success", "results": results}), 200
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "status": 200,
+                        "message": "Search Successfully",
+                        "data": {
+                            "results": results,
+                        },
+                    }
+                ),
+                200,
+            )
         else:
-            return jsonify({"error": "No products found with the given name"}), 404
+            return (
+                jsonify(
+                    {
+                        "error": "No products found with the given name",
+                    }
+                ),
+                404,
+            )
     else:
-        return jsonify({"error": "Query parameter 'query' is required"}), 400
+        return (
+            jsonify(
+                {
+                    "error": "Query parameter 'query' is required",
+                }
+            ),
+            400,
+        )
+
+
+@app.route("/api/v1/change_password", methods=["POST"])
+def change_password():
+    token = request.headers.get("Authorization")
+    if token:
+        if token in valid_tokens:
+            old_password = request.json.get("old_password")
+            new_password = request.json.get("new_password")
+            userId = token.split(SECRET_KEY)[1].split("shop")[1].split("2203")[0]
+            password = (
+                db_firestore.collection("users")
+                .document(userId)
+                .get()
+                .to_dict()
+                .get("password")
+            )
+            if password != hash(old_password):
+                return jsonify({"Error": "Incorrect Password"}), 401
+            else:
+                db.reference("users/" + userId).update({"password": hash(new_password)})
+                db_firestore.collection("users").document(userId).update(
+                    {"password": hash(new_password)}
+                )
+                return (
+                    jsonify(
+                        {
+                            "success": True,
+                            "status": 200,
+                            "message": "Change Password Successfully",
+                        }
+                    ),
+                    200,
+                )
+        else:
+            return (
+                jsonify(
+                    {
+                        "Error": "Token is not valid",
+                    }
+                ),
+                401,
+            )
+
+    else:
+        return (
+            jsonify(
+                {
+                    "Error": "No accessToken",
+                }
+            ),
+            401,
+        )
 
 
 @app.route("/api/v1/crawl_data", methods=["GET"])
@@ -140,7 +380,16 @@ def crawl_data():
     if type_economy == 3:
         print("Reading Data from Muarenhat")
         Crawl_from_muarenhat(numPage, "./Data/TestData.json")
-        return jsonify({"message": "Data crawled successfully", "result": "success"})
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "status": 200,
+                    "message": "Data crawled successfully",
+                }
+            ),
+            200,
+        )
     else:
         return jsonify({"error": "Invalid type"}), 400
 
@@ -152,7 +401,14 @@ def push_local_to_firebase(path_file_data="Data/TestData.json"):
         try:
             data = json.load(f)
         except json.JSONDecodeError:
-            return jsonify({"error": "No data to push "}), 400
+            return (
+                jsonify(
+                    {
+                        "error": "No data to push ",
+                    }
+                ),
+                400,
+            )
     try:
         with tqdm(total=len(data)) as pbar:
             for index, item in enumerate(data):
@@ -162,9 +418,23 @@ def push_local_to_firebase(path_file_data="Data/TestData.json"):
                 )
                 pbar.update(1)  # Cập nhật tiến độ
 
-        return jsonify({"status": "Success", "message": "Push data success"}), 200
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "status": 200,
+                    "message": "Push data success",
+                }
+            ),
+            200,
+        )
     except Exception as e:
-        return jsonify({"Error": str(e)}), 400
+        return (
+            jsonify(
+                {"Error": str(e)},
+            ),
+            400,
+        )
 
 
 @app.route("/api/v1/add_to_cart", methods=["POST"])
@@ -176,11 +446,34 @@ def add_to_card():
             idUser = token.split(SECRET_KEY)[1]
             data = {"idProduct": idProduct}
             db_firestore.collection("cart").document(idUser).set(data)
-            return jsonify({"status": "Success", "message": "Added to cart"}), 200
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "status": 201,
+                        "message": "Added to cart",
+                    }
+                ),
+                201,
+            )
         else:
-            return jsonify({"Error": "Token is not valid"}), 401
+            return (
+                jsonify(
+                    {
+                        "Error": "Token is not valid",
+                    }
+                ),
+                401,
+            )
     else:
-        return jsonify({"Error": "No accessToken"}), 401
+        return (
+            jsonify(
+                {
+                    "Error": "No accessToken",
+                }
+            ),
+            401,
+        )
 
 
 @app.route("/api/v1/get_cart", methods=["GET"])
@@ -192,31 +485,88 @@ def get_cart():
             data = db_firestore.collection("cart").document(idUser).get()
             if data.exists:
                 listProduct = data.to_dict()
-                return jsonify(
-                    {
-                        "status": "Success",
-                        "message": "Danh sách sản phẩm từ giỏ hàng",
-                        "result": listProduct,
-                    }
-                ),200
+                return (
+                    jsonify(
+                        {
+                            "success": True,
+                            "status": 200,
+                            "message": "Danh sách sản phẩm từ giỏ hàng",
+                            "data": {
+                                "result": listProduct,
+                            },
+                        }
+                    ),
+                    200,
+                )
             else:
                 listProduct = []
-                return jsonify(
-                    {
-                        "status": "Success",
-                        "message": "Giỏ hàng trống",
-                        "result": listProduct,
-                    }
-                ),200
+                return (
+                    jsonify(
+                        {
+                            "success": True,
+                            "status": 200,
+                            "message": "Giỏ hàng trống",
+                            "data": {
+                                "result": listProduct,
+                            },
+                        }
+                    ),
+                    200,
+                )
         else:
-            return jsonify({"Error": "Token is not valid"}), 401
+            return (
+                jsonify(
+                    {
+                        "Error": "Token is not valid",
+                    }
+                ),
+                401,
+            )
     else:
-        return jsonify({"Error": "No accessToken"}), 401
+        return (
+            jsonify(
+                {
+                    "Error": "No accessToken",
+                }
+            ),
+            401,
+        )
 
 
 @app.route("/api/v1/product_recommender", methods=["GET"])
 def product_recommender():
-    return jsonify({"Error": "no data"}), 400
+    token = request.headers.get("Authorization")
+    if token:
+        if token in valid_tokens:
+            idUser = token.split(SECRET_KEY)[1]
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "status": 201,
+                        "message": "List Recommender Product",
+                    }
+                ),
+                201,
+            )
+        else:
+            return (
+                jsonify(
+                    {
+                        "Error": "Token is not valid",
+                    }
+                ),
+                401,
+            )
+    else:
+        return (
+            jsonify(
+                {
+                    "Error": "No accessToken",
+                }
+            ),
+            401,
+        )
 
 
 @app.route("/api/v1/logout", methods=["POST"])
@@ -225,11 +575,34 @@ def logout():
     if token:
         if token in valid_tokens:
             valid_tokens.remove(token)
-            return jsonify({"status": "Success", "message": "Logout Success"}), 200
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "status": 200,
+                        "message": "Logout Success",
+                    }
+                ),
+                200,
+            )
         else:
-            return jsonify({"Error": "Token is not valid"}), 401
+            return (
+                jsonify(
+                    {
+                        "Error": "Token is not valid",
+                    }
+                ),
+                401,
+            )
     else:
-        return jsonify({"Error": "No accessToken"}), 401
+        return (
+            jsonify(
+                {
+                    "Error": "No accessToken",
+                }
+            ),
+            401,
+        )
 
 
 if __name__ == "__main__":
