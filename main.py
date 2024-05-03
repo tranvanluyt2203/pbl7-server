@@ -531,6 +531,41 @@ def get_cart():
             ),
             401,
         )
+@app.route("/api/v1/push_data_recommender")
+def push_data_recommender():
+    token = request.headers.get("Authorization")
+    if token:
+        if token in valid_tokens:
+            idUser = token.split(SECRET_KEY)[1]
+            data_recommender = request.json()
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "status": 201,
+                        "message": "List Recommender Product",
+                    }
+                ),
+                201,
+            )
+        else:
+            return (
+                jsonify(
+                    {
+                        "Error": "Token is not valid",
+                    }
+                ),
+                401,
+            )
+    else:
+        return (
+            jsonify(
+                {
+                    "Error": "No accessToken",
+                }
+            ),
+            401,
+        )
 
 
 @app.route("/api/v1/product_recommender", methods=["GET"])
