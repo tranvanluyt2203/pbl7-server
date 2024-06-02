@@ -150,7 +150,7 @@ def login():
         )
 
 
-@app.route("api/v1/get_profile", methods=["GET"])
+@app.route("/api/v1/get_profile", methods=["GET"])
 def get_profile():
     token = request.headers.get("Authorization")
     if token:
@@ -194,7 +194,7 @@ def get_profile():
         )
 
 
-@app.route("api/v1/update_profile", methods=["POST"])
+@app.route("/api/v1/update_profile", methods=["POST"])
 def update_profile():
     token = request.headers.get("Authorization")
     if token:
