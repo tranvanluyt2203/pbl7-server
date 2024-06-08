@@ -6,7 +6,9 @@ token = ""
 def register(URL):
     url = URL + "/api/v1/register"
     # data = {"email": "tranvanluyt12b4@gmail.com", "password": "22032002"}
-    data = {"email": "tranvanluyt11b4@gmail.com", "password": "22032002"}
+    email = input("Enter email: ")
+    password = input("Enter password: ")
+    data = {"email": email, "password": password}
     headers = {"Content-Type": "application/json"}
 
     response = requests.post(url, json=data, headers=headers)
@@ -16,12 +18,13 @@ def register(URL):
 
 def login(URL):
     url = URL + "/api/v1/login"
-    print(url)
     # data = {"email": "tranvanluyt12b4@gmail.com", "password": "22032002"}
-    data = {"email": "tranvanluyt11b4@gmail.com", "password": "12345678"}
+    email = input("Enter email: ")
+    password = input("Enter password: ")
+    data = {"email": email, "password": password}
     response = requests.post(url, json=data)
     global token
-    token = response.json().get("accessToken")
+    token = response.json().get("data").get("accessToken")
     print("Status code:", response.status_code)
     print("Response:", response.json())
 
@@ -100,8 +103,80 @@ def change_password(URL):
 def get_cart(URL):
     url = URL + "/api/v1/get_cart"
     global token
+    print(token)
     headers = {"Authorization": f"Bearer{token}"}
     response = requests.get(url, headers=headers)
+    print("Status code", response.status_code)
+    print("Response:", response.json())
+
+
+def get_profile(URL):
+    url = URL + "/api/v1/get_profile"
+    global token
+    headers = {"Authorization": f"Bearer{token}"}
+    response = requests.get(url, headers=headers)
+    print("Status code", response.status_code)
+    print("Response:", response.json())
+
+
+def update_profile(URL):
+    url = URL + "/api/v1/update_profile"
+    global token
+    headers = {"Authorization": f"Bearer{token}"}
+    fullname = input("Nhập họ và tên: ")
+    email = input("Nhập email: ")
+    phone_num = input("Nhập số điện thoại: ")
+    birth_day = input("Nhập ngày/tháng/năm sinh: ")
+    data = {
+        "fullname": fullname,
+        "email": email,
+        "phone_number": phone_num,
+        "birth_day": birth_day,
+        "avatar": "https://ss-images.saostar.vn/wp700/pc/1613810558698/Facebook-Avatar_3.png",
+    }
+    response = requests.post(url, headers=headers, json=data)
+    print("Status code", response.status_code)
+    print("Response:", response.json())
+
+
+def push_data_category(URL):
+    url = URL + "/api/v1/push_data_categories"
+    response = requests.post(url)
+    print("Status code", response.status_code)
+    print("Response:", response.json())
+
+
+def get_categories(URL):
+    url = URL + "/api/v1/get_categories"
+    response = requests.get(url)
+    print("Status code", response.status_code)
+    print("Response:", response.json())
+
+
+def get_list_id_products_from_category(URL):
+    url = URL + "/api/v1/get_list_id_products_from_category"
+    categories = [
+        "Chăm sóc thú cưng",
+        "Công nghiệp & Xây dựng",
+        "Điện máy",
+        "Máy nông nghiệp",
+        "Mẹ & Bé",
+        "Nhà cửa & Đời sống",
+        "Nhạc cụ",
+        "Ô tô & Xe máy & Xe đạp",
+        "Sức khỏe & Làm đẹp",
+        "Thể thao & Dã ngoại",
+        "Thiết bị y tế",
+        "Thời trang",
+        "Thực phẩm & Đồ uống",
+        "Voucher & Dịch vụ",
+    ]
+    print("List categories:")
+    for i in range(len(categories)):
+        print(f"{i+1} - {categories[i]}")
+    choice = int(input("Your choice number: "))
+    params = {"name": categories[choice - 1]}
+    response = requests.get(url, params=params)
     print("Status code", response.status_code)
     print("Response:", response.json())
 
@@ -122,6 +197,11 @@ def main():
         print("8. Get Cart")
         print("9. Logout")
         print("10. Change Password")
+        print("11. Get Profile")
+        print("12. Update Profile")
+        print("13. Push data to category")
+        print("14. Get categories")
+        print("15. Get list id product from category")
         print("0. To out")
         print("")
         select = int(input("Type your select : "))
@@ -145,6 +225,16 @@ def main():
             logout(url)
         elif select == 10:
             change_password(url)
+        elif select == 11:
+            get_profile(url)
+        elif select == 12:
+            update_profile(url)
+        elif select == 13:
+            push_data_category(url)
+        elif select == 14:
+            get_categories(url)
+        elif select == 15:
+            get_list_id_products_from_category(url)
 
 
 # ----------------------------

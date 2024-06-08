@@ -395,7 +395,7 @@ def crawl_data():
 
 
 @app.route("/api/v1/push_local_to_firebase", methods=["POST"])
-def push_local_to_firebase(path_file_data="Data/TestData.json"):
+def push_local_to_firebase(path_file_data="Data/DataMuaReNhat.json"):
     data = None
     with open(path_file_data, "r") as f:
         try:
@@ -412,7 +412,7 @@ def push_local_to_firebase(path_file_data="Data/TestData.json"):
     try:
         with tqdm(total=len(data)) as pbar:
             for index, item in enumerate(data):
-                # db.reference("products").child(f"product{index + 1}").set(item)
+                db.reference("products").child(f"product{index + 1}").set(item)
                 db_firestore.collection("products").document(f"product{index + 1}").set(
                     item
                 )
@@ -436,6 +436,85 @@ def push_local_to_firebase(path_file_data="Data/TestData.json"):
             400,
         )
 
+
+@app.route("/api/v1/push_data_categories", methods=["POST"])
+def push_data_categories():
+    categories = {
+        "dien-may-c100000": "Điện máy",
+        "thoi-trang-c110000": "Thời trang",
+        "the-thao-da-ngoai-c120000": "Thể thao & Dã ngoại",
+        "nha-cua-doi-song-c130000": "Nhà cửa & Đời sống",
+        "me-be-c140000": "Mẹ & Bé",
+        "suc-khoe-lam-dep-c150000": "Sức khỏe & Làm đẹp",
+        "o-to-xe-may-xe-dap-c160000": "Ô tô & Xe máy & Xe đạp",
+        "cong-nghiep-xay-dung-c170000": "Công nghiệp & Xây dựng",
+        "may-nong-nghiep-c180000": "Máy nông nghiệp",
+        "nhac-cu-c190000": "Nhạc cụ",
+        "cham-soc-thu-cung-c200000": "Chăm sóc thú cưng",
+        "thiet-bi-y-te-c210000": "Thiết bị y tế",
+        "thuc-pham-do-uong-c220000": "Thực phẩm & Đồ uống",
+        "voucher-dich-vu-c230000": "Voucher & Dịch vụ",
+    }
+    for key, value in categories.items():
+        docs = (
+            db_firestore.collection("products").where("category", "==", value).stream()
+        )
+        list_id_product = []
+        for doc in docs:
+            list_id_product.append(doc.id)
+        data = {"name": value, "listIdProducts": list_id_product}
+        db_firestore.collection("categories").document(key).set(data)
+    return (
+        jsonify(
+            {
+                "success": True,
+                "status": 201,
+                "message": "Add product to categories success",
+            }
+        ),
+        201,
+    )
+
+
+@app.route("/api/v1/get_categories", methods=["GET"])
+def get_categories():
+    docs = db_firestore.collection("categories").stream()
+    categories = []
+    for doc in docs:
+        categories.append(doc.get("name"))
+    return (
+        jsonify(
+            {
+                "success": True,
+                "status": 200,
+                "message": "Danh sách phân loại sản phẩm",
+                "data": {
+                    "result": categories,
+                },
+            }
+        ),
+        200,
+    )
+@app.route("/api/v1/get_list_id_products_from_category",methods=["GET"])
+def get_list_id_products_from_category():
+    category = request.args.get("name")
+    docs = db_firestore.collection("categories").where("name","==",category).stream()
+    list_idProduct = []
+    for doc in docs:
+        list_idProduct.append(doc.get("listIdProducts"))
+    return (
+        jsonify(
+            {
+                "success": True,
+                "status": 200,
+                "message": f"Danh sách Id sản phẩm phân loại {category}",
+                "data": {
+                    "result": list_idProduct,
+                },
+            }
+        ),
+        200,
+    )
 
 @app.route("/api/v1/add_to_cart", methods=["POST"])
 def add_to_card():
@@ -531,6 +610,8 @@ def get_cart():
             ),
             401,
         )
+
+
 @app.route("/api/v1/push_data_recommender")
 def push_data_recommender():
     token = request.headers.get("Authorization")
