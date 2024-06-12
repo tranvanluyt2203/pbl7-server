@@ -18,15 +18,18 @@ def register(URL):
 
 def login(URL):
     url = URL + "/api/v1/login"
-    # data = {"email": "tranvanluyt12b4@gmail.com", "password": "22032002"}
-    email = input("Enter email: ")
-    password = input("Enter password: ")
-    data = {"email": email, "password": password}
+    data = {"email": "tranvanluyt11b4@gmail.com", "password": "22032002"}
+    # email = input("Enter email: ")
+    # password = input("Enter password: ")
+    # data = {"email": email, "password": password}
     response = requests.post(url, json=data)
-    global token
-    token = response.json().get("data").get("accessToken")
     print("Status code:", response.status_code)
     print("Response:", response.json())
+    global token
+    if response.status_code != 401:
+        token = response.json().get("data").get("accessToken")
+    else:
+        print(response.json().get("message"))
 
 
 def crawl_data(URL):
@@ -181,6 +184,37 @@ def get_list_id_products_from_category(URL):
     print("Response:", response.json())
 
 
+import random
+
+
+def push_data_recommender(URL):
+    url = URL + "/api/v1/push_data_recommender"
+    global token
+    headers = {"Authorization": f"Bearer{token}"}
+    data = {
+        "product1": random.randint(1, 5),
+        "product6": random.randint(1, 5),
+        "product5": random.randint(1, 5),
+        "product43": random.randint(1, 5),
+        "product1": random.randint(1, 5),
+        "product4": random.randint(1, 5),
+        "product10": random.randint(1, 5),
+        "product88": random.randint(1, 5),
+    }
+    response = requests.post(url, headers=headers, json=data)
+    print("Status code", response.status_code)
+    print("Response:", response.json())
+
+
+def product_recommender(URL):
+    url = URL + "/api/v1/product_recommender"
+    global token
+    headers = {"Authorization": f"Bearer{token}"}
+    response = requests.get(url, headers=headers)
+    print("Status code", response.status_code)
+    print("Response:", response.json())
+
+
 def main():
     select = -1
     url = input("Nhập url ( Để trống nếu url = http://127.0.0.1:5000 ) : ")
@@ -202,6 +236,8 @@ def main():
         print("13. Push data to category")
         print("14. Get categories")
         print("15. Get list id product from category")
+        print("16. Push data recommender")
+        print("17. Product recommender")
         print("0. To out")
         print("")
         select = int(input("Type your select : "))
@@ -235,6 +271,10 @@ def main():
             get_categories(url)
         elif select == 15:
             get_list_id_products_from_category(url)
+        elif select == 16:
+            push_data_recommender(url)
+        elif select == 17:
+            product_recommender(url)
 
 
 # ----------------------------

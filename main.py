@@ -495,10 +495,12 @@ def get_categories():
         ),
         200,
     )
-@app.route("/api/v1/get_list_id_products_from_category",methods=["GET"])
+
+
+@app.route("/api/v1/get_list_id_products_from_category", methods=["GET"])
 def get_list_id_products_from_category():
     category = request.args.get("name")
-    docs = db_firestore.collection("categories").where("name","==",category).stream()
+    docs = db_firestore.collection("categories").where("name", "==", category).stream()
     list_idProduct = []
     for doc in docs:
         list_idProduct.append(doc.get("listIdProducts"))
@@ -515,6 +517,7 @@ def get_list_id_products_from_category():
         ),
         200,
     )
+
 
 @app.route("/api/v1/add_to_cart", methods=["POST"])
 def add_to_card():
@@ -612,19 +615,21 @@ def get_cart():
         )
 
 
-@app.route("/api/v1/push_data_recommender")
+@app.route("/api/v1/push_data_recommender", methods=["POST"])
 def push_data_recommender():
     token = request.headers.get("Authorization")
     if token:
         if token in valid_tokens:
-            idUser = token.split(SECRET_KEY)[1]
-            data_recommender = request.json()
+            idUser = token.split(SECRET_KEY)[1].split("shop")[1].split("2203")[0]
+            data = request.json
+
+            db_firestore.collection("user_base_ratings").document(idUser).set(data)
             return (
                 jsonify(
                     {
                         "success": True,
                         "status": 201,
-                        "message": "List Recommender Product",
+                        "message": "Push data success",
                     }
                 ),
                 201,
@@ -649,18 +654,28 @@ def push_data_recommender():
         )
 
 
+from RecommenderProduct import MainRS
+
+
 @app.route("/api/v1/product_recommender", methods=["GET"])
 def product_recommender():
     token = request.headers.get("Authorization")
     if token:
         if token in valid_tokens:
-            idUser = token.split(SECRET_KEY)[1]
+            idUser = token.split(SECRET_KEY)[1].split("shop")[1].split("2203")[0]
+            docs = db_firestore.collection("user_base_ratings").stream()
+            data = []
+            for doc in docs:
+                for key, value in doc.to_dict().items():
+                    data.append([doc.id, key, value])
+            data_recommender = MainRS(data, idUser)
             return (
                 jsonify(
                     {
                         "success": True,
                         "status": 201,
                         "message": "List Recommender Product",
+                        "result": data_recommender,
                     }
                 ),
                 201,
