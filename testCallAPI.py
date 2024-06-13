@@ -18,10 +18,10 @@ def register(URL):
 
 def login(URL):
     url = URL + "/api/v1/login"
-    data = {"email": "tranvanluyt11b4@gmail.com", "password": "22032002"}
-    # email = input("Enter email: ")
-    # password = input("Enter password: ")
-    # data = {"email": email, "password": password}
+    # data = {"email": "tranvanluyt11b4@gmail.com", "password": "22032002"}
+    email = input("Enter email: ")
+    password = input("Enter password: ")
+    data = {"email": email, "password": password}
     response = requests.post(url, json=data)
     print("Status code:", response.status_code)
     print("Response:", response.json())

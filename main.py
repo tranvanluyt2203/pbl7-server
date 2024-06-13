@@ -63,9 +63,13 @@ def register():
             "birth_day": "",
             "avatar": "https://ss-images.saostar.vn/wp700/pc/1613810558698/Facebook-Avatar_3.png",
         }
-        db.reference("users").child(user.uid).set(user_data)
+        print(user.uid)
+        print(user_data)
+        print(profile)
         db_firestore.collection("users").document(user.uid).set(user_data)
         db_firestore.collection("profiles").document(user.uid).set(profile)
+        db.reference("users").child(user.uid).set(user_data)
+        db.reference("profiles").child(user.uid).set(profile)
         return (
             jsonify(
                 {
@@ -464,6 +468,7 @@ def push_data_categories():
             list_id_product.append(doc.id)
         data = {"name": value, "listIdProducts": list_id_product}
         db_firestore.collection("categories").document(key).set(data)
+        db.reference("categories").child(key).set(data)
     return (
         jsonify(
             {
@@ -528,6 +533,7 @@ def add_to_card():
             idUser = token.split(SECRET_KEY)[1]
             data = {"idProduct": idProduct}
             db_firestore.collection("cart").document(idUser).set(data)
+            db.reference("cart").child(idUser).set(data)
             return (
                 jsonify(
                     {
@@ -624,6 +630,7 @@ def push_data_recommender():
             data = request.json
 
             db_firestore.collection("user_base_ratings").document(idUser).set(data)
+            db.reference("user_base_ratings").child(idUser).set(data)
             return (
                 jsonify(
                     {
