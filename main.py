@@ -63,9 +63,6 @@ def register():
             "birth_day": "",
             "avatar": "https://ss-images.saostar.vn/wp700/pc/1613810558698/Facebook-Avatar_3.png",
         }
-        print(user.uid)
-        print(user_data)
-        print(profile)
         db_firestore.collection("users").document(user.uid).set(user_data)
         db_firestore.collection("profiles").document(user.uid).set(profile)
         db.reference("users").child(user.uid).set(user_data)
@@ -383,7 +380,7 @@ def crawl_data():
     numPage = int(request.args.get("numPage"))
     if type_economy == 3:
         print("Reading Data from Muarenhat")
-        Crawl_from_muarenhat(numPage, "./Data/TestData.json")
+        Crawl_from_muarenhat(numPage, "./Data/DataMuaReNhat.json")
         return (
             jsonify(
                 {
@@ -516,7 +513,7 @@ def get_list_id_products_from_category():
                 "status": 200,
                 "message": f"Danh sách Id sản phẩm phân loại {category}",
                 "data": {
-                    "result": list_idProduct,
+                    "result": list_idProduct[0],
                 },
             }
         ),
@@ -531,9 +528,8 @@ def add_to_card():
         if token in valid_tokens:
             idProduct = request.args.get("idProduct")
             idUser = token.split(SECRET_KEY)[1]
-            data = {"idProduct": idProduct}
-            db_firestore.collection("cart").document(idUser).set(data)
-            db.reference("cart").child(idUser).set(data)
+            db_firestore.collection("cart").document(idUser).set({"listIdProduct": firestore.ArrayUnion([idProduct])}, merge=True)
+            db.reference("cart").child(idUser).child("listIdProduct").push(idProduct)
             return (
                 jsonify(
                     {

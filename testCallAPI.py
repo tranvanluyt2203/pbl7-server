@@ -33,7 +33,7 @@ def login(URL):
 
 
 def crawl_data(URL):
-    url = URL + "/api/v1/crawl_data?type=3&numPage=1"
+    url = URL + "/api/v1/crawl_data?type=3&numPage=20"
     response = requests.get(url)
     print("Status code:", response.status_code)
     print("Response:", response.json())

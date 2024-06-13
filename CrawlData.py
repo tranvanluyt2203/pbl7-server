@@ -89,6 +89,24 @@ def Crawl_from_muarenhat(numPage=10, path_file_data="Data/DataMuaReNhat.json"):
                     price = item.find_all("span", {"class": "css-product-card-price"})[
                         0
                     ].text
+                    description = ""
+                    url_product = link_product.split("/chuyen-huong")[0]
+                    response_product = requests.get(url_product)
+                    soup_product = BeautifulSoup(response_product.text, "html.parser")
+                    descriptions = soup_product.find(
+                        "div", {"class": "css-1s6j5gx e28h50318"}
+                    )
+                    if descriptions:
+                        content = descriptions.find("div", {"class": "content"})
+                        desc_content = content.find("div", {"id": "desc_content"})
+                        if desc_content:
+                            h1 = desc_content.find_all("p")[0].find("strong").text
+                            description += h1 + "\n"
+                            for i in range(1, len(desc_content.find_all("p"))):
+                                p = desc_content.find_all("p")[i].text
+                                description += p + "\n"
+                        else:
+                            description = content.text
                     data.append(
                         {
                             "name": name_product,
@@ -101,6 +119,7 @@ def Crawl_from_muarenhat(numPage=10, path_file_data="Data/DataMuaReNhat.json"):
                             "price_original": price_original,
                             "price": price,
                             "category": categories[url],
+                            "description": description,
                         }
                     )
                 data_.extend(data)
@@ -117,6 +136,7 @@ def main():
     # Crawl_from_API_shopee()
     # Crawl_from_API_tiki()
     Crawl_from_muarenhat(20, "Data/DataMuaReNhat.json")
+    # Crawl_from_muarenhat(1, "Data/TestData.json")
 
 
 if __name__ == "__main__":
