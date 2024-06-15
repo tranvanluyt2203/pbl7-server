@@ -35,22 +35,22 @@ def Crawl_from_muarenhat(numPage=10, path_file_data="Data/DataMuaReNhat.json"):
     response = requests.get(base_url)
     soup = BeautifulSoup(response.text, "html.parser")
     categories = {
-        "/dien-may-c100000": "Điện máy",
+        # "/dien-may-c100000": "Điện máy",
         "/thoi-trang-c110000": "Thời trang",
         "/the-thao-da-ngoai-c120000": "Thể thao & Dã ngoại",
         "/nha-cua-doi-song-c130000": "Nhà cửa & Đời sống",
         "/me-be-c140000": "Mẹ & Bé",
         "/suc-khoe-lam-dep-c150000": "Sức khỏe & Làm đẹp",
-        "/o-to-xe-may-xe-dap-c160000": "Ô tô & Xe máy & Xe đạp",
-        "/cong-nghiep-xay-dung-c170000": "Công nghiệp & Xây dựng",
-        "/may-nong-nghiep-c180000": "Máy nông nghiệp",
+        # "/o-to-xe-may-xe-dap-c160000": "Ô tô & Xe máy & Xe đạp",
+        # "/cong-nghiep-xay-dung-c170000": "Công nghiệp & Xây dựng",
+        # "/may-nong-nghiep-c180000": "Máy nông nghiệp",
         "/nhac-cu-c190000": "Nhạc cụ",
         "/cham-soc-thu-cung-c200000": "Chăm sóc thú cưng",
         "/thiet-bi-y-te-c210000": "Thiết bị y tế",
         "/thuc-pham-do-uong-c220000": "Thực phẩm & Đồ uống",
         "/voucher-dich-vu-c230000": "Voucher & Dịch vụ",
     }
-    num_page_categories = 40
+    num_page_categories = 10
     print("Read data")
     k = 0
     num_page = numPage
@@ -135,7 +135,7 @@ def Crawl_from_muarenhat(numPage=10, path_file_data="Data/DataMuaReNhat.json"):
 def main():
     # Crawl_from_API_shopee()
     # Crawl_from_API_tiki()
-    Crawl_from_muarenhat(20, "Data/DataMuaReNhat.json")
+    Crawl_from_muarenhat(5, "Data/DataMuaReNhat.json")
     # Crawl_from_muarenhat(1, "Data/TestData.json")
 
 

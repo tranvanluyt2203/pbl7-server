@@ -160,13 +160,13 @@ def get_list_id_products_from_category(URL):
     url = URL + "/api/v1/get_list_id_products_from_category"
     categories = [
         "Chăm sóc thú cưng",
-        "Công nghiệp & Xây dựng",
-        "Điện máy",
-        "Máy nông nghiệp",
+        # "Công nghiệp & Xây dựng",
+        # "Điện máy",
+        # "Máy nông nghiệp",
         "Mẹ & Bé",
         "Nhà cửa & Đời sống",
         "Nhạc cụ",
-        "Ô tô & Xe máy & Xe đạp",
+        # "Ô tô & Xe máy & Xe đạp",
         "Sức khỏe & Làm đẹp",
         "Thể thao & Dã ngoại",
         "Thiết bị y tế",

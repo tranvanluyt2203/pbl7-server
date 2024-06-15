@@ -8,17 +8,20 @@ from firebase_admin import firestore
 import hashlib
 import json
 from tqdm import tqdm
+from flask_cors import CORS
 
 app = Flask(__name__)
-
+CORS(app)
 SECRET_KEY = "Bearer"
 
 # Initialize Firebase Admin SDK
-cred = credentials.Certificate("./pbl7-fa653-firebase-adminsdk-2mifc-4880062305.json")
+# cred = credentials.Certificate("./pbl7-fa653-firebase-adminsdk-2mifc-4880062305.json")
+cred = credentials.Certificate("./pbl7-9ebca-firebase-adminsdk-acx2m-1a85134d7e.json")
 firebase_admin.initialize_app(
     cred,
     {
-        "databaseURL": "https://pbl7-fa653-default-rtdb.asia-southeast1.firebasedatabase.app"
+        # "databaseURL": "https://pbl7-fa653-default-rtdb.asia-southeast1.firebasedatabase.app"
+        "databaseURL":"https://pbl7-9ebca-default-rtdb.firebaseio.com"
     },
 )
 db_firestore = firestore.client()
@@ -438,23 +441,60 @@ def push_local_to_firebase(path_file_data="Data/DataMuaReNhat.json"):
         )
 
 
+import schedule
+import time
+import threading
+import requests
+
+
+def crawl_data():
+    print("Scheduled crawl started")
+    try:
+        response = requests.get(
+            "http://localhost:5000/api/v1/crawl_data?type=3&numPage=1"
+        )
+        print("Crawl API response:", response.json())
+    except requests.RequestException as e:
+        print("Failed to call crawl API:", e)
+    print("Scheduled crawl finished")
+
+
+def push_local_to_firebase():
+    print("Running another scheduled task")
+    try:
+        response = requests.get("http://localhost:5000/api/v1/push_local_to_firebase")
+        print("Another task API response:", response.json())
+    except requests.RequestException as e:
+        print("Failed to call another task API:", e)
+
+
+# thiết lập crawl và push data sau 7 ngày
+def run_schedule():
+    schedule.every(7).days.do(crawl_data)
+    schedule.every(7).days.do(push_local_to_firebase)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+
 @app.route("/api/v1/push_data_categories", methods=["POST"])
 def push_data_categories():
     categories = {
-        "dien-may-c100000": "Điện máy",
-        "thoi-trang-c110000": "Thời trang",
-        "the-thao-da-ngoai-c120000": "Thể thao & Dã ngoại",
-        "nha-cua-doi-song-c130000": "Nhà cửa & Đời sống",
-        "me-be-c140000": "Mẹ & Bé",
-        "suc-khoe-lam-dep-c150000": "Sức khỏe & Làm đẹp",
-        "o-to-xe-may-xe-dap-c160000": "Ô tô & Xe máy & Xe đạp",
-        "cong-nghiep-xay-dung-c170000": "Công nghiệp & Xây dựng",
-        "may-nong-nghiep-c180000": "Máy nông nghiệp",
-        "nhac-cu-c190000": "Nhạc cụ",
-        "cham-soc-thu-cung-c200000": "Chăm sóc thú cưng",
-        "thiet-bi-y-te-c210000": "Thiết bị y tế",
-        "thuc-pham-do-uong-c220000": "Thực phẩm & Đồ uống",
-        "voucher-dich-vu-c230000": "Voucher & Dịch vụ",
+        # "/dien-may-c100000": "Điện máy",
+        "/thoi-trang-c110000": "Thời trang",
+        "/the-thao-da-ngoai-c120000": "Thể thao & Dã ngoại",
+        "/nha-cua-doi-song-c130000": "Nhà cửa & Đời sống",
+        "/me-be-c140000": "Mẹ & Bé",
+        "/suc-khoe-lam-dep-c150000": "Sức khỏe & Làm đẹp",
+        # "/o-to-xe-may-xe-dap-c160000": "Ô tô & Xe máy & Xe đạp",
+        # "/cong-nghiep-xay-dung-c170000": "Công nghiệp & Xây dựng",
+        # "/may-nong-nghiep-c180000": "Máy nông nghiệp",
+        "/nhac-cu-c190000": "Nhạc cụ",
+        "/cham-soc-thu-cung-c200000": "Chăm sóc thú cưng",
+        "/thiet-bi-y-te-c210000": "Thiết bị y tế",
+        "/thuc-pham-do-uong-c220000": "Thực phẩm & Đồ uống",
+        "/voucher-dich-vu-c230000": "Voucher & Dịch vụ",
     }
     for key, value in categories.items():
         docs = (
@@ -464,8 +504,8 @@ def push_data_categories():
         for doc in docs:
             list_id_product.append(doc.id)
         data = {"name": value, "listIdProducts": list_id_product}
-        db_firestore.collection("categories").document(key).set(data)
-        db.reference("categories").child(key).set(data)
+        db_firestore.collection("categories").document(key.lstrip("/")).set(data)
+        db.reference("categories").child(key.lstrip("/")).set(data)
     return (
         jsonify(
             {
@@ -527,8 +567,11 @@ def add_to_card():
     if token:
         if token in valid_tokens:
             idProduct = request.args.get("idProduct")
+            print(idProduct)
             idUser = token.split(SECRET_KEY)[1]
-            db_firestore.collection("cart").document(idUser).set({"listIdProduct": firestore.ArrayUnion([idProduct])}, merge=True)
+            db_firestore.collection("cart").document(idUser).set(
+                {"listIdProduct": firestore.ArrayUnion([idProduct])}, merge=True
+            )
             db.reference("cart").child(idUser).child("listIdProduct").push(idProduct)
             return (
                 jsonify(
@@ -740,4 +783,6 @@ def logout():
 
 
 if __name__ == "__main__":
+    scheduler_thread = threading.Thread(target=run_schedule)
+    scheduler_thread.start()
     app.run(debug=True)
